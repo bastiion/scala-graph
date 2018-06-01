@@ -1,81 +1,93 @@
 import sbt._
 import Keys._
-import org.scalajs.sbtplugin.ScalaJSPlugin
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
 // SBT: project coreCrossJS, fastOptJS, publishSigned
 
-lazy val all = Project(
-  id = "Graph-all",
-  base = file("."),
-  settings = Seq(
+lazy val all = Project("Graph-all", file(".")).
+  settings(
     name := "Graph for Scala",
     version := Version.highest,
     publishTo := None
-  ),
-  aggregate = Seq(core, constrained, dot, json)
-)
+  )
+  .dependsOn(core, constrained, dot, json)
+
 
 lazy val coreCross = crossProject.crossType(CrossType.Pure).in(file("core"))
-  .settings(defaultCrossSettings:_*)
-  .jvmSettings(defaultSettings:_*)
+  .settings(defaultCrossSettings: _*)
+  .jvmSettings(defaultSettings: _*)
   .settings(
-    name      := "Graph Core",
-    version   := Version.core,
+    name := "Graph Core",
+    version := Version.core,
     libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.4" % "optional;provided"
   )
 
-lazy val core   = coreCross.jvm
+lazy val core = coreCross.jvm
 lazy val corejs = coreCross.js
 
-lazy val constrained = Project(
-  id = "Graph-constrained",
-  base = file("constrained"),
-  settings = defaultSettings ++ Seq(
+lazy val constrainedCross = crossProject
+  .crossType(CrossType.Pure)
+  .in(file("constrained"))
+  .settings(defaultCrossSettings: _*)
+  .jvmSettings(defaultSettings: _*)
+  .settings(
     name := "Graph Constrained",
     version := Version.constrained
   )
-) dependsOn (core % "compile->compile;test->test")
+  .dependsOn(coreCross % "compile->compile;test->test")
 
-lazy val dot = Project(
-  id = "Graph-dot",
-  base = file("dot"),
-  settings = defaultSettings ++ Seq(
+lazy val constrained = constrainedCross.jvm
+lazy val constrainedJS = constrainedCross.js
+
+lazy val dotCross = crossProject
+  .crossType(CrossType.Pure)
+  .in(file("dot"))
+  .settings(defaultCrossSettings: _*)
+  .jvmSettings(defaultSettings: _*)
+  .settings(
     name := "Graph DOT",
     version := Version.dot
   )
-) dependsOn core
+.dependsOn(coreCross % "compile->compile;test->test")
+
+lazy val dot = dotCross.jvm
+lazy val dotJS = dotCross.js
 
 lazy val json = Project(
   id = "Graph-json",
-  base = file("json"),
-  settings = defaultSettings ++ Seq(
+  base = file("json"))
+  .settings(defaultSettings: _*)
+  .settings(
     name := "Graph JSON",
     version := Version.json,
     libraryDependencies += "net.liftweb" %% "lift-json" % "3.0.1"
   )
-) dependsOn core
+  .dependsOn(core)
 
-lazy val misc = Project(
-  id = "Graph-misc",
-  base = file("misc"),
-  settings = defaultSettings ++ Seq(
+lazy val miscCross = crossProject
+  .crossType(CrossType.Pure)
+  .in(file("misc"))
+  .settings(defaultCrossSettings: _*)
+  .jvmSettings(defaultSettings: _*)
+  .settings(
     name := "Graph Miscellaneous",
     version := Version.misc
   )
-) dependsOn core
+  .dependsOn(coreCross % "compile->compile;test->test")
+
+lazy val misc = miscCross.jvm
+lazy val miscJS = miscCross.js
 
 lazy val defaultCrossSettings = Defaults.coreDefaultSettings ++ Seq(
   scalaVersion := Version.compiler_2_12,
-  crossScalaVersions  := Seq(scalaVersion.value, Version.compiler_2_11),
+  crossScalaVersions := Seq(scalaVersion.value, Version.compiler_2_11),
   organization := "org.scala-graph"
 ) ++ GraphSonatype.settings
-    
+
 lazy val defaultSettings = defaultCrossSettings ++ Seq(
   parallelExecution in Test := false,
-  scalacOptions in (Compile, doc) ++=
+  scalacOptions in(Compile, doc) ++=
     Opts.doc.title(name.value) ++
-    Opts.doc.version(version.value),
+      Opts.doc.version(version.value),
   // prevents sbteclipse from including java source directories
   unmanagedSourceDirectories in Compile := (scalaSource in Compile) (Seq(_)).value,
   unmanagedSourceDirectories in Test := (scalaSource in Test) (Seq(_)).value,
